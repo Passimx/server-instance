@@ -1,0 +1,153 @@
+services:
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - chats-frontend
+      - chats-service
+      - files-service
+      - notifications-service
+    volumes:
+      - ./data/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 80:80
+    networks:
+      - network
+
+  notifications-service:
+    image: ghcr.io/passimx/notifications-service:latest
+    container_name: notifications-service
+    restart: always
+    env_file: .env
+    networks:
+      - network
+    depends_on:
+      - kafka
+      - redis
+
+  chats-service:
+    image: ghcr.io/passimx/chats-service:latest
+    container_name: chats-service
+    depends_on:
+      - postgres
+      - kafka
+      - notifications-service
+    restart: always
+    env_file: .env
+    networks:
+      - network
+
+  files-service:
+    image: ghcr.io/passimx/files-service:latest
+    container_name: files-service
+    restart: always
+    env_file: .env
+    networks:
+      - network
+    volumes:
+      - ./data/files:/app/data
+
+  chats-frontend:
+    image: ghcr.io/passimx/chats-frontend:latest
+    container_name: chats-frontend
+    restart: unless-stopped
+    networks:
+      - network
+    depends_on:
+      - chats-service
+      - notifications-service
+      - files-service
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres
+    restart: always
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${PG_DATABASE}
+      POSTGRES_USER: ${PG_USERNAME}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    command: -p ${PG_PORT}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    expose:
+      - ${PG_PORT}
+    networks:
+      - network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    restart: always
+    volumes:
+      - ./data/kafka:/bitnami/kafka
+    networks:
+      - network
+    env_file: .env
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_LISTENERS=CLIENT://:${KAFKA_CLIENT_PORT},INTERNAL://:${KAFKA_INTERNAL_PORT},EXTERNAL://:${KAFKA_EXTERNAL_PORT},
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CLIENT:SASL_PLAINTEXT,EXTERNAL:SASL_PLAINTEXT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:${KAFKA_CLIENT_PORT},EXTERNAL://kafka:${KAFKA_EXTERNAL_PORT}
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_SASL_MECHANISM_INTER_BROKER_PROTOCOL=PLAIN
+      - KAFKA_CFG_SASL_ENABLED_MECHANISMS=PLAIN
+      - KAFKA_CLIENT_USERS=${KAFKA_CLIENT_USERS}
+      - KAFKA_CLIENT_PASSWORDS=${KAFKA_USER_PASSWORD}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=INTERNAL
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@127.0.0.1:9093
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    command:
+      - bash
+      - -c
+      - |
+        (
+          IFS="," read -ra TOPICS <<< "$$PRE_CREATE_TOPICS";
+          for T in "$${TOPICS[@]}"; do
+            /opt/bitnami/kafka/bin/kafka-topics.sh \
+              --bootstrap-server kafka:9094 \
+              --create --topic "$$T" --if-not-exists &&
+            echo "Created $$T" ||
+            echo "Failed to create $$T";
+          done;
+        ) & /opt/bitnami/scripts/kafka/run.sh
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    command: redis-server --appendonly yes
+    networks:
+      - network
+    expose:
+      - ${REDIS_PORT}
+    volumes:
+      - ./data/redis:/data
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=60 # Проверка на обновление контейнеров каждые 60с
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+      - WATCHTOWER_ROLLING_RESTART=true
+    command: notifications-service chats-service files-service chats-frontend
+    depends_on:
+      - chats-frontend
+      - chats-service
+      - files-service
+      - notifications-service
+      - nginx
+    networks:
+      - network
+
+networks:
+  network:
+    driver: bridge
+    name: network
