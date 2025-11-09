@@ -11,6 +11,7 @@ node_modules
 dist
 data
 dist-ssr
+chats-frontend
 *.local
 *.env
 
