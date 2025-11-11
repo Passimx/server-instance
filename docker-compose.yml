@@ -4,6 +4,11 @@ services:
     image: nginx:alpine
     user: "0"
     restart: unless-stopped
+    depends_on:
+      - chats-frontend
+      - chats-service
+      - files-service
+      - notifications-service
     volumes:
       - ./data/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
