@@ -17,9 +17,6 @@ git clone https://github.com/Passimx/server-instance.git
 # Enter the directory
 cd server-instance
 
-# Give permission to use your machine disk
-sudo chown -R 1001:1001 ./data
-
 # Give permission to run .sh files (for start.sh)
 chmod -R 777 ./
 
