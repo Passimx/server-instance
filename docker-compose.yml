@@ -59,6 +59,13 @@ services:
       - chats-service
       - notifications-service
       - files-service
+      
+  calls-service:
+    image: ghcr.io/passimx/calls-service:latest
+    container_name: calls-service
+    restart: always
+    networks:
+      - network
 
   postgres:
     image: postgres:17-alpine
