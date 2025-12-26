@@ -9,6 +9,7 @@ services:
       - chats-service
       - files-service
       - notifications-service
+      - calls-service
     volumes:
       - ./data/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
@@ -149,12 +150,13 @@ services:
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
       - WATCHTOWER_ROLLING_RESTART=true
-    command: notifications-service chats-service files-service chats-frontend
+    command: notifications-service chats-service files-service chats-frontend calls-service
     depends_on:
       - chats-frontend
       - chats-service
       - files-service
       - notifications-service
+      - calls-service
       - nginx
     networks:
       - network
