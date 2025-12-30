@@ -18,7 +18,7 @@ services:
       - network
 
   notifications-service:
-    image: ghcr.io/passimx/notifications-service:latest
+    image: ghcr.io/passimx/notifications-service:dev
     container_name: notifications-service
     restart: always
     env_file: .env
@@ -29,7 +29,7 @@ services:
       - redis
 
   chats-service:
-    image: ghcr.io/passimx/chats-service:latest
+    image: ghcr.io/passimx/chats-service:dev
     container_name: chats-service
     depends_on:
       - postgres
@@ -40,7 +40,7 @@ services:
       - network
 
   files-service:
-    image: ghcr.io/passimx/files-service:latest
+    image: ghcr.io/passimx/files-service:dev
     user: "0"
     container_name: files-service
     restart: always
@@ -51,7 +51,7 @@ services:
       - ./data/files:/app/data
 
   chats-frontend:
-    image: ghcr.io/passimx/chats-frontend:latest
+    image: ghcr.io/passimx/chats-frontend:dev
     container_name: chats-frontend
     restart: unless-stopped
     networks:
@@ -62,7 +62,7 @@ services:
       - files-service
       
   calls-service:
-    image: ghcr.io/passimx/calls-service:latest
+    image: ghcr.io/passimx/calls-service:dev
     container_name: calls-service
     restart: always
     networks:
